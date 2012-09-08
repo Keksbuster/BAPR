@@ -298,8 +298,8 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 	sx_ = m_x_/anz_points2;
 	sy_ = m_y_/anz_points2;
 	
-	u_x = sx;
-	u_y = sy;
+	u_x = sx_;
+	u_y = sy_;
 	
 	//alle punkte zum ursprung verschieben
 	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size() && j < all_fin2.size(); j++) {
@@ -409,6 +409,41 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 	
 }
 
+void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
+	
+	
+	//Start und endpunkt finden
+	float tmp_dist =  0.0;
+	float max_dist = -1.0;
+	int st_pt=0;
+	int end_pt=-1;
+	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size()-1; j++) {
+		if(col==0)cvCircle(img, all_fin[j],3, CV_RGB(255,255,255),3);
+		if(col==1)cvCircle(img, all_fin[j],3, CV_RGB(255,0,0),3);
+		if(col==2)cvCircle(img, all_fin[j],3, CV_RGB(0,255,0),3);
+		if(col==3)cvCircle(img, all_fin[j],3, CV_RGB(0,0,255),3);
+		if(col==4)cvCircle(img, all_fin[j],3, CV_RGB(255,255,0),3);
+		if(col==5)cvCircle(img, all_fin[j],3, CV_RGB(0,255,255),3);
+		if(col==6)cvCircle(img, all_fin[j],3, CV_RGB(255,0,255),3);
+		if(j<all_fin.size()-1 ){
+			if(col==0)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(255,255,255));
+			if(col==1)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(255,0,0));
+			if(col==2)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(0,255,0));
+			if(col==3)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(0,0,255));
+			if(col==4)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(255,255,0));
+			if(col==5)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(0,255,255));
+			if(col==6)cvLine(img, all_fin[j], all_fin[j+1], CV_RGB(255,0,255));	
+		}
+	}
+	if(col==0)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(255,255,255));
+	if(col==1)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(255,0,0));
+	if(col==2)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(0,255,0));
+	if(col==3)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(0,0,255));
+	if(col==4)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(255,255,0));
+	if(col==5)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(0,255,255));
+	if(col==6)cvLine(img, all_fin.front(), all_fin.back(), CV_RGB(255,0,255));	
+}
+
  int main(int argc, char *argv[])
  {
 	vector <CvPoint> all_fin;
@@ -453,8 +488,6 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
             break;
     }
     int n_pic = atoi(argv[1]);
-    int n_pic2 = atoi(argv[2]);
-
     img= cvLoadImage(fold.gl_pathv[n_pic]); // Laden eines Bildes
     img_glob= cvLoadImage(fold.gl_pathv[n_pic]); // Laden eines Bildes
     height= img->height; // Auslesen der Bildinfos
@@ -464,53 +497,30 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
     all_fin2.clear();
     
 	img21 = cvCreateImage( cvSize(width,height), img->depth, 3 );
-	anz_points = get_hand_points(fold.gl_pathv[n_pic2],&all_fin);
-	printf("anz_points:  %d\n",anz_points);
+	
 	anz_points2 = get_hand_points(fold.gl_pathv[n_pic ],&all_fin2);
-	printf("anz_points2: %d\n",anz_points2);
-	
-	if(anz_points!=anz_points2){
-		printf("Incompatible amount of points!\n");
-		return -1;
-	}
-
-
-	transform_points(all_fin,all_fin2);
+	draw_hand_points(all_fin2,img21,1);
 	
 	
-	//Start und endpunkt finden
-	float tmp_dist =  0.0;
-	float max_dist = -1.0;
-	int st_pt=0;
-	int end_pt=-1;
-	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size()-1; j++) {
-			
-		cvCircle(img_glob, all_fin[j],3, CV_RGB(127,192,64),3);
-		
-		if(j<all_fin.size()-1 )
-			cvLine(img_glob, all_fin[j], all_fin[j+1], CV_RGB(127,192,64));
-		
-		cvCircle(img_glob, all_fin2[j], 3,CV_RGB(127,0,64),3);
-		if(j<all_fin.size()-1)
-			cvLine(img_glob, all_fin2[j], all_fin2[j+1], CV_RGB(127,0,64));
-	}
-	
-	cvLine(img_glob, all_fin.front(), all_fin.back(), CV_RGB(127,192,64));
-	cvLine(img_glob, all_fin2.front(), all_fin2.back(), CV_RGB(127,0,64));
-
-	cvCircle( img21, all_fin[end_pt], 10, CV_RGB(255,0,0)); 
-	cvCircle( img21, all_fin[end_pt+1], 10, CV_RGB(255,0,0)); 
-	
-
-
-
-	for(ix=0; ix<fold.gl_pathc; ix++)//erstes Histogramm für input-bild!!
+	for(int ii=0; ii<fold.gl_pathc; ii++)//erstes Histogramm für input-bild!!
     {
+		anz_points = get_hand_points(fold.gl_pathv[ii],&all_fin);
+	
+		if(anz_points!=anz_points2){
+			printf("Incompatible amount of points!\n");
+			return -1;
+		}
+		transform_points(all_fin,all_fin2);
+		draw_hand_points(all_fin,img21,ii);
+		all_fin.clear();
+	}
+	for(ix=0; ix<fold.gl_pathc; ix++)//erstes Histogramm für input-bild!!
+    { 
 		printf("%s\n",fold.gl_pathv[ix]);
 	}
 
-	cvShowImage("img21",img21);
-    cvShowImage("img_glob", img_glob); // Anzeige des Bildes
+	cvShowImage("All Hands",img21);
+    cvShowImage("Reference", img_glob); // Anzeige des Bildes
     cvWaitKey(0); // Warten auf Tastendruck
    // cvReleaseImage(&img); // Freigabe des Speichers
 	cvReleaseImage(&img21); // Freigabe des Speichers
