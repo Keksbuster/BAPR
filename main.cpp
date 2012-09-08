@@ -402,6 +402,12 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 	float f0,f1,f2,f3,k,alpha,r,new_g;
 	int gray_tab[256];
 	float max1=-1.00;int max2=-1;
+	
+	
+	if(!argv[1]){
+		printf("usage: ./main <0-6>\n");
+		return -1;
+	}
 
     switch( glob("*bilder/*.png", 0, NULL, &fold ) )
     {
