@@ -1,6 +1,4 @@
-//#include <cv.h>
 #include <opencv2/opencv.hpp>
-//#include <highgui.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -19,7 +17,6 @@ using namespace cv;
 
  char wndname[] = "Drawing Demo";
  IplImage* img_glob;
-#define N 70
 
 float Pi = ((float)4.0*atan(1.0));
 
@@ -30,51 +27,12 @@ float pt_dist(CvPoint p1, CvPoint p2)
 
 float pt_angle(Point p1, Point p2, Point p3)
 {
-
-Point2f a = p1 - p2;
-Point2f b = p3 - p2;
-
-a *= 1/norm(a);
-b *= 1/norm(b);
-/*
-float angba = atan2f((p1->y - p2->y) , (p1->x - p2->x));
-float angbc = atan2f((p3->y - p2->y) , (p3->x - p2->y));
-float rslt = angba - angbc;
-float rs = abs((rslt * 180) / Pi );
-*/
+	Point2f a = p1 - p2;
+	Point2f b = p3 - p2;
+	a *= 1/norm(a);
+	b *= 1/norm(b);
 	return (a.x*b.x+a.y*b.y);
-	
-		/*float ret = -1.0;
-
-	ret = abs(p1->x-p2->x)*abs(p2->x-p3->x)+abs(p1->y-p2->y)*abs(p2->y-p3->y);
-	ret /= sqrt(pow((p1->x-p2->x),2)+pow((p2->x-p3->x),2))*sqrt(pow((p1->y-p2->y),2)+pow((p2->y-p3->y),2));
-	return ret;
-	* */
 }
-
-CvPoint rotate_point(CvPoint cp,float angle,CvPoint piv)
-{
-  float s = sin(angle);
-  float c = cos(angle);
-  CvPoint ret_p = cvPoint(cp.x,cp.y);
-
-  // translate point back to origin:
-  ret_p.x -= piv.x;
-  ret_p.y -= piv.y;
-
-  // rotate point
-  float xnew = (cp.x * c) - (cp.y * s);
-  float ynew = (cp.x * s) + (cp.y * c);
-
-  // translate point back:
-  ret_p.x = xnew + piv.x;
-  ret_p.y = ynew + piv.y;
-
-	return ret_p;
-
-}
-
-
 
 int get_hand_points(char* img_name,vector<CvPoint> *all_fin, int col=0){
 	
@@ -96,7 +54,6 @@ int get_hand_points(char* img_name,vector<CvPoint> *all_fin, int col=0){
 	vector <CvPoint> all_p;
 	width = img->width;
 	height= img->height;
-	//priority_queue <float> pq;
 	priority_queue< pair< float, int > > pq;
 	priority_queue< pair< float, int > > pq2;
 
@@ -137,9 +94,6 @@ int get_hand_points(char* img_name,vector<CvPoint> *all_fin, int col=0){
 			anz_points+=2;
 		}	
 	}
-	//all_p.push_back(*defectArray[count-1].start);
-	//all_p.push_back(*defectArray[count-1].depth_point);
-	//anz_points++;
 	free(defectArray);
 	
 	//geringste abstände der hochpunkte untereinander finden
@@ -200,8 +154,6 @@ int get_hand_points(char* img_name,vector<CvPoint> *all_fin, int col=0){
 
 	if(col){
 		for(std::vector<CvPoint>::size_type j = 0; j <= all_p.size(); j++) {
-			//if(j==max2)continue;
-
 			sprintf (tmp_str, "%d", (int)j);
 			cvPutText(img_glob, tmp_str, all_p[j], &font, cvScalar(0,255,255));
 			if(col==1)cvCircle( img_glob, all_p[j], 10, CV_RGB(255,127,255)); 
@@ -353,7 +305,7 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 
 	delta = (sxx*syy) - (sxy*sxy);
 	delta = 1/delta;
-	
+	//Transformations-Matrix
 	Mat M_r =    Mat(2, 2, CV_32FC1);
 	Mat M_l =    Mat(2, 2, CV_32FC1);
 	Mat M_abcd = Mat(2, 2, CV_32FC1);
@@ -373,31 +325,18 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 	
 	Matx22f abcd = M_abcd;
 	
-	//abcd = delta*(m_l*m_r);
-	/*
-	a = (delta*(sxx_* syy)) - (delta*(syx_*sxy));
-	b = (delta*(syx_* sxx)) - (delta*(sxx_*sxy));
-	c = (delta*(sxy_*syy_)) - (delta*(syy_* sxy));
-	d = (delta*(syy_*sxx))  - (delta*(sxy_*sxy));
-*/
-	
-
 	printf("...............................\n");
 	cout << M_abcd <<endl;
-	
 	
 	//transform
 	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size(); j++) {
 		
 		Vec2f v (all_fin[j].x,all_fin[j].y);
 		
-		Matx21f tmp = abcd * v ;
+		Matx21f tmp = abcd * v ; //Transformation anwenden
 		Point pt = Point(tmp(0),tmp(1));
 		all_fin[j] = pt;
-		//all_fin[j].x = (a*all_fin[j].x+b*all_fin[j].y+all_fin2[j].x)*0.66;
-		//all_fin[j].y = c*all_fin[j].x+d*all_fin[j].y+all_fin2[j].y;
 	}	
-
 
 	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size() && j < all_fin2.size(); j++) {
 		all_fin[j].x = all_fin[j].x + u_x;
@@ -405,13 +344,9 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 		all_fin2[j].x = all_fin2[j].x + u_x;
 		all_fin2[j].y = all_fin2[j].y + u_y;
 	}
-	
-	
 }
 
 void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
-	
-	
 	//Start und endpunkt finden
 	float tmp_dist =  0.0;
 	float max_dist = -1.0;
@@ -457,7 +392,6 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 	IplImage* img_rot=0;
 	glob_t fold;
 	float a,b,c,d;
-	
     int height,width, widthstep,widthstep2,anz_points,anz_points2;
 	int width1 = 256;
 	int height1 = 256;
@@ -467,9 +401,7 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 	float xm=127.0;
 	float f0,f1,f2,f3,k,alpha,r,new_g;
 	int gray_tab[256];
-	
 	float max1=-1.00;int max2=-1;
-
 
     switch( glob("*bilder/*.png", 0, NULL, &fold ) )
     {
@@ -488,9 +420,9 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
             break;
     }
     int n_pic = atoi(argv[1]);
-    img= cvLoadImage(fold.gl_pathv[n_pic]); // Laden eines Bildes
-    img_glob= cvLoadImage(fold.gl_pathv[n_pic]); // Laden eines Bildes
-    height= img->height; // Auslesen der Bildinfos
+    img= cvLoadImage(fold.gl_pathv[n_pic]); 
+    img_glob= cvLoadImage(fold.gl_pathv[n_pic]); 
+    height= img->height;
     width= img->width;
     
     all_fin.clear();
@@ -502,8 +434,9 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 	draw_hand_points(all_fin2,img21,1);
 	
 	
-	for(int ii=0; ii<fold.gl_pathc; ii++)//erstes Histogramm für input-bild!!
+	for(int ii=0; ii<fold.gl_pathc; ii++)
     {
+		printf("%s\n",fold.gl_pathv[ii]);
 		anz_points = get_hand_points(fold.gl_pathv[ii],&all_fin);
 	
 		if(anz_points!=anz_points2){
@@ -514,15 +447,11 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 		draw_hand_points(all_fin,img21,ii);
 		all_fin.clear();
 	}
-	for(ix=0; ix<fold.gl_pathc; ix++)//erstes Histogramm für input-bild!!
-    { 
-		printf("%s\n",fold.gl_pathv[ix]);
-	}
 
 	cvShowImage("All Hands",img21);
-    cvShowImage("Reference", img_glob); // Anzeige des Bildes
-    cvWaitKey(0); // Warten auf Tastendruck
-   // cvReleaseImage(&img); // Freigabe des Speichers
-	cvReleaseImage(&img21); // Freigabe des Speichers
+    cvShowImage("Reference", img_glob); 
+    cvWaitKey(0);
+	cvReleaseImage(&img21); 
+	cvReleaseImage(&img_glob); 
     return 0;
  }
