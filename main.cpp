@@ -14,9 +14,119 @@
 using namespace std;
 using namespace cv;
 
+typedef std::vector<cv::Point> Contour;
+typedef std::vector< Contour > ContourVec;
+
+ IplImage* img_glob;
+ 
+ CvPoint center_pt;
+
+class Index {
+	cv::PCA pca;
+	cv::Mat idx_projected;
+
+	public:
+	void generatePCA(vector <vector <CvPoint> >& vec) {
+		cv::Mat m(vec.size(), vec[0].size()*2, CV_32FC1);
+		for(size_t contour = 0; contour < vec.size(); contour++) {
+			for(size_t point = 0; point < vec[contour].size(); point++) {
+				m.at<float>(contour, 2*point) = vec[contour][point].x;
+				m.at<float>(contour, 2*point+1) = vec[contour][point].y;
+			}
+		}
+		
+		pca(m, cv::Mat(), CV_PCA_DATA_AS_ROW, 0);
+	}
+
+	int getBestFittingIdx(vector<cv::Point>& c) {
+		cv::Mat m(1,c.size()*2, CV_32FC1);
+		cv::Mat projected_c;
+		for(size_t point = 0; point < c.size(); point++) {
+			m.at<float>(0, 2*point) = c[point].x;
+			m.at<float>(0, 2*point+1) = c[point].y;
+		}
+		pca.project(m, projected_c);
+		
+
+		double mindistance = std::numeric_limits<double>::max();
+		int minidx = -1;
+		for(int row = 0; row < m.rows; row++) {
+			double distance = 0;
+			for(int i = 0; i < m.cols; i++) {
+				float tmp = (idx_projected.at<float>(row,i) - projected_c.at<float>(0,i));
+				distance += tmp*tmp;
+			}
+			if(distance < mindistance) {
+				mindistance = distance;
+				minidx = row;
+			}
+	
+		}
+		return minidx;
+	}
+
+cv::PCA doPCA(vector <vector <CvPoint> >& vec) {
+	cv::Mat m(vec.size(), vec[0].size()*2, CV_32FC1);
+	for(size_t contour = 0; contour < vec.size(); contour++) {
+		for(size_t point = 0; point < vec[contour].size(); point++) {
+			m.at<float>(contour, 2*point) = vec[contour][point].x;
+			m.at<float>(contour, 2*point+1) = vec[contour][point].y;
+		}
+	}
+	Mat m2;
+	pca.project(m, idx_projected);
+	pca.backProject(idx_projected, m2);
+
+	cv::Mat mean = pca.mean;
+	cv::Mat evsqrt;
+	cv::pow(abs(pca.eigenvalues.t()), 1.0/2, evsqrt);
+	cv::Mat minhand = mean + 3 * evsqrt * pca.eigenvectors;
+	cv::Mat maxhand = mean - 3 * evsqrt * pca.eigenvectors;
+	maxhand = maxhand;// + img_glob->height/4;
+	minhand = minhand ;//+ img_glob->height/4;
+	mean = mean ;//+ img_glob->height/4;
+	
+	cv::Mat debugImg(img_glob->height, img_glob->width,CV_8UC3, cv::Scalar(0));
+	
+	for(int i = 0; i < maxhand.cols; i+= 2) {
+		float a,b,c,d,e,f;
+		float a_,b_,c_,d_,e_,f_;
+		a = minhand.at<float>(0,i);
+		b = minhand.at<float>(0,i+1);
+		c = maxhand.at<float>(0,i);
+		d = maxhand.at<float>(0,i+1);
+		e = mean.at<float>(0,i);
+		f = mean.at<float>(0,i+1);
+		
+		if(i < maxhand.cols-1){
+		a_ = minhand.at<float>(0,i+2);
+		b_ = minhand.at<float>(0,i+3);
+		c_ = maxhand.at<float>(0,i+2);
+		d_ = maxhand.at<float>(0,i+3);
+		e_ = mean.at<float>(0,i+2);
+		f_ = mean.at<float>(0,i+3);
+	}
+		
+		cv::Point pca_max(c,d), pca_min(a,b), pca_mit(e,f);
+		cv::Point pca_max_(c_,d_), pca_min_(a_,b_), pca_mit_(e_,f_);
+
+		cv::circle(debugImg, pca_max, 5, CV_RGB(255,0,0),2);
+		cv::circle(debugImg, pca_mit, 5, CV_RGB(0,0,255),2);
+		cv::circle(debugImg, pca_min, 5, CV_RGB(0,255,0),2);
+		if(i < maxhand.cols-2){
+			cv::line(debugImg, pca_max, pca_max_ ,CV_RGB(255,0,0));
+			cv::line(debugImg, pca_mit, pca_mit_ ,CV_RGB(0,0,255));
+			cv::line(debugImg, pca_min, pca_min_ ,CV_RGB(00,255,0));
+		}
+	}
+
+	cv::imshow("PCA", debugImg);
+	return pca;
+}
+};
 
  char wndname[] = "Drawing Demo";
- IplImage* img_glob;
+
 
 float Pi = ((float)4.0*atan(1.0));
 
@@ -337,7 +447,7 @@ void transform_points(vector<CvPoint> &all_fin,vector<CvPoint> &all_fin2){
 		Point pt = Point(tmp(0),tmp(1));
 		all_fin[j] = pt;
 	}	
-
+	center_pt = cvPoint(u_x,u_y);
 	for(std::vector<CvPoint>::size_type j = 0; j < all_fin.size() && j < all_fin2.size(); j++) {
 		all_fin[j].x = all_fin[j].x + u_x;
 		all_fin[j].y = all_fin[j].y + u_y;
@@ -383,7 +493,9 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
  {
 	vector <CvPoint> all_fin;
 	vector <CvPoint> all_fin2;
-    IplImage *img= 0;
+	vector <vector <CvPoint> > hands;
+	
+	IplImage *img= 0;
 	IplImage* img2=0;
 	IplImage* img20=0;
 	IplImage* img21=0;
@@ -425,6 +537,10 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
         default:
             break;
     }
+   
+    
+    
+    
     int n_pic = atoi(argv[1]);
     img= cvLoadImage(fold.gl_pathv[n_pic]); 
     img_glob= cvLoadImage(fold.gl_pathv[n_pic]); 
@@ -451,8 +567,13 @@ void draw_hand_points(vector<CvPoint> &all_fin,IplImage *img, int col=0){
 		}
 		transform_points(all_fin,all_fin2);
 		draw_hand_points(all_fin,img21,ii);
+		hands.push_back(all_fin);
 		all_fin.clear();
 	}
+	
+	Index idx;
+	idx.generatePCA(hands);
+	idx.doPCA(hands);
 
 	cvShowImage("All Hands",img21);
     cvShowImage("Reference", img_glob); 
